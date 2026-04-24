@@ -1,0 +1,10 @@
+{
+  "name": "LiquidTest",
+  "uuid": "8d2e67b4-fd52-4b0f-b844-ed282ec9f683",
+  "creator": {
+    "version": "3.8.7"
+  },
+  "scripts": {
+    "tsc": "tsc"
+  }
+}
