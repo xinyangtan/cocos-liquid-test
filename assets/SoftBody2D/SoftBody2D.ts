@@ -33,10 +33,10 @@ function shapeInit() {
     for (let shapePtr of  this._shapes) {
         // Create soft body particle group matching transform shape
         const gd = new Box2DWasm.b2ParticleGroupDef();
-        gd.set_flags(Box2DWasm.b2_elasticParticle | Box2DWasm.b2_springParticle);
+        gd.set_flags(Box2DWasm.b2_elasticParticle);
         gd.set_groupFlags(Box2DWasm.b2_solidParticleGroup);
         gd.set_angle(body.node.eulerAngles.z * Math.PI / 180);
-        gd.set_strength(0.95);
+        gd.set_strength(0.2);
         gd.set_shapeCount(1);
         const shape = Box2DWasm.wrapPointer(shapePtr, Box2DWasm.b2PolygonShape);
         gd.set_shape(shape);
@@ -136,13 +136,13 @@ export class SoftBody2D extends Component {
                 const world: Box2DWasm.b2World = PhysicsSystem2D.instance.physicsWorld.impl._obj;
 
                 const psDef = new Box2DWasm.b2ParticleSystemDef();
-                psDef.set_radius(0.1);
+                psDef.set_radius(0.3);
                 psDef.set_maxCount(SoftBody2D.maxParticleCount);
-                psDef.set_dampingStrength(1.9);
-                psDef.set_elasticStrength(0.92);
-                psDef.set_springStrength(0.92);
-                psDef.set_pressureStrength(0.1);
-                psDef.set_ejectionStrength(0.8);
+                psDef.set_dampingStrength(0.8);
+                psDef.set_elasticStrength(0.05);
+                psDef.set_springStrength(0.1);
+                psDef.set_pressureStrength(0.15);
+                psDef.set_ejectionStrength(0.2);
                 psDef.set_destroyByAge(false);
                 SoftBody2D._sharedPS = world.CreateParticleSystem(psDef);
             }

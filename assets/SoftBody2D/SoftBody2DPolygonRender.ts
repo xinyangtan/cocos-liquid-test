@@ -93,27 +93,6 @@ const dynamicTriadAssembler: IAssembler = {
         const triCount = self._triCount;
         const indexCount = triCount * 3;
 
-        // // Expand iData if the cumulative index offset exceeds buffer capacity
-        // const meshBuffer = chunk.meshBuffer;
-        // const needLength = meshBuffer.indexOffset + indexCount;
-        // if (needLength > meshBuffer.iData.length) {
-        //     const expansionLength = Math.max(Math.floor(needLength * 1.25), needLength);
-        //     const newIData = new Uint16Array(expansionLength);
-        //     newIData.set(meshBuffer.iData);
-        //     meshBuffer.iData = newIData;
-        // }
-        // const ib = meshBuffer.iData;
-        // let indexOffset = meshBuffer.indexOffset;
-        // const indices = self._triadIndices;
-        // for (let i = 0; i < triCount; i++) {
-        //     const base = i * 3;
-        //     ib[indexOffset++] = vidOrigin + indices[base];
-        //     ib[indexOffset++] = vidOrigin + indices[base + 1];
-        //     ib[indexOffset++] = vidOrigin + indices[base + 2];
-        // }
-        // meshBuffer.indexOffset += indexCount;
-
-        // Use accessor.appendIndices (same pattern as skeleton.ts)
         if (!self._finalIndexBuf || self._finalIndexBuf.length < indexCount) {
             self._finalIndexBuf = new Uint16Array(indexCount);
         }
@@ -139,12 +118,13 @@ function updateVertexData(comp: SoftBody2DPolygonRender): void {
     const node = comp.node;
     const wp = comp._worldPos;
     const lp = comp._localPos;
+    const s = comp.renderScale;
 
     for (let i = 0; i < vertCount; i++) {
         Vec3.set(wp, positions[i * 2] * PPM, positions[i * 2 + 1] * PPM, 0);
         node.inverseTransformPoint(lp, wp);
-        dataList[i].x = lp.x;
-        dataList[i].y = lp.y;
+        dataList[i].x = lp.x * s;
+        dataList[i].y = lp.y * s;
     }
 }
 
@@ -190,6 +170,9 @@ export class SoftBody2DPolygonRender extends UIRenderer {
     @property({ type: SoftBody2D })
     softBody: SoftBody2D = null;
 
+    @property({ tooltip: '渲染缩放倍数' })
+    renderScale = 1;
+
     @property({type: SpriteFrame, visible: true})
     get spriteFrame(): SpriteFrame | null { return this._spriteFrame; }
     set spriteFrame(val: SpriteFrame | null) {
@@ -198,7 +181,7 @@ export class SoftBody2DPolygonRender extends UIRenderer {
     }
     @property({type: SpriteFrame})
     private _spriteFrame: SpriteFrame | null = null;
-    
+
     _worldPos = new Vec3();
     _localPos = new Vec3();
     _dataDirty = false;
@@ -293,10 +276,7 @@ export class SoftBody2DPolygonRender extends UIRenderer {
             }
         }
 
-        this._vertCount = pc;
-        this._triCount = myTriCount;
-
-        // 第一帧计算粒子包围盒，作为 UV 归一化参考框
+        // 第一帧：计算外包围盒、自动 renderScale、UV
         if (!this._uvBoundsReady) {
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
             for (let i = 0; i < pc; i++) {
@@ -311,18 +291,22 @@ export class SoftBody2DPolygonRender extends UIRenderer {
             this._uvMinY = minY;
             this._uvRangeX = (maxX - minX) || 1;
             this._uvRangeY = (maxY - minY) || 1;
-            // 用初始位置一次性计算 UV，后续不再重算
+
+            // 自动计算 renderScale：包围盒扩展 radius * 2 的比例
+            const radius = ps.GetRadius();
+            const avgExtent = (this._uvRangeX + this._uvRangeY) * 0.5;
+            this.renderScale = 1 + radius * 4 / avgExtent;
+
             const invX = 1 / this._uvRangeX;
             const invY = 1 / this._uvRangeY;
             const uvs = new Float32Array(pc * 2);
 
-            // spriteFrame 在合图中的 UV 区域（无 spriteFrame 时回退到 0-1）
             const frame = this._spriteFrame;
             const fuvs = frame ? frame.uv : null;
-            const minU = fuvs ? fuvs[0] : 0; // left
-            const maxU = fuvs ? fuvs[2] : 1; // right
-            const minV = fuvs ? fuvs[1] : 0; // bottom
-            const maxV = fuvs ? fuvs[5] : 1; // top
+            const minU = fuvs ? fuvs[0] : 0;
+            const maxU = fuvs ? fuvs[2] : 1;
+            const minV = fuvs ? fuvs[1] : 0;
+            const maxV = fuvs ? fuvs[5] : 1;
             const rangeU = maxU - minU;
             const rangeV = maxV - minV;
 
@@ -335,6 +319,9 @@ export class SoftBody2DPolygonRender extends UIRenderer {
             this._uvs = uvs;
             this._uvBoundsReady = true;
         }
+
+        this._vertCount = pc;
+        this._triCount = myTriCount;
         this._dataDirty = true;
         this.markForUpdateRenderData();
     }
